@@ -88,6 +88,8 @@ public class Gr4vy {
         self.onEvent = onEvent
         
         guard let url = Gr4vyUtility.getInitialURL(from: setup) else {
+            let defaults = UserDefaults.standard
+            defaults.setValue("Gr4vy Error: Failed to load", forKey: "wpayMessage")
             dismissWithEvent(.generalError("Gr4vy Error: Failed to load"))
             return nil
         }
@@ -104,6 +106,8 @@ public class Gr4vy {
         self.onEvent = onEvent
         
         guard let url = Gr4vyUtility.getInitialURL(from: setup) else {
+            let defaults = UserDefaults.standard
+            defaults.setValue("Gr4vy Error: Failed to load", forKey: "wpayMessage")
             dismissWithEvent(.generalError("Gr4vy Error: Failed to load"))
             return
         }
@@ -182,6 +186,8 @@ extension Gr4vy: Gr4vyInternalDelegate {
             // Root Only
         case .approvalUrl:
             guard let url = Gr4vyUtility.handleApprovalUrl(from: message.payload) else {
+                let defaults = UserDefaults.standard
+                defaults.setValue("Gr4vy Error: Approval URL Failure", forKey: "wpayMessage")
                 dismissWithEvent(.generalError("Gr4vy Error: Approval URL Failure"))
                 return
             }
@@ -213,6 +219,21 @@ extension Gr4vy: Gr4vyInternalDelegate {
             error(message: "Gr4vy Error: transaction Failed")
             error(message: "\(message.payload.debugDescription)")
             
+            // MARK: Store status and message
+            let defaults = UserDefaults.standard
+            
+            if let payloadData = message.payload["data"] as? [String:Any] {
+                guard let status = payloadData["status"] else { return }
+                defaults.set(status, forKey: "wpayStatus")
+                
+                if let details = payloadData["details"] as? [[String:Any]]  {
+                    if details.count > 0 {
+                        guard let message = details[0]["message"] else { return }
+                        defaults.set(message, forKey: "wpayMessage")
+                    }
+                }
+            }
+            
             rootViewController.dismiss(animated: true) // MARK: Dismiss on payment failure to sync process with your process order API endpoint(s).
             
             self.onEvent?(Gr4vyUtility.handleTransactionFailed(from: message.payload))
@@ -221,6 +242,8 @@ extension Gr4vy: Gr4vyInternalDelegate {
             // Popover Only
         case .transactionUpdated, .approvalErrored:
             guard let content = Gr4vyUtility.handleTransactionUpdated(from: message.payload) else {
+                let defaults = UserDefaults.standard
+                defaults.setValue("Gr4vy Error: transactionUpdated / approvalErrored pass through failed.", forKey: "wpayMessage")
                 dismissWithEvent(.generalError("Gr4vy Error: transactionUpdated / approvalErrored pass through failed. "))
                 return
             }
