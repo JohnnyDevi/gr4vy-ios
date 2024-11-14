@@ -93,6 +93,8 @@ public class Gr4vy {
         self.onEvent = onEvent
         
         guard let url = Gr4vyUtility.getInitialURL(from: setup) else {
+            let defaults = UserDefaults.standard
+            defaults.setValue("Gr4vy Error: Failed to load", forKey: "wpayMessage")
             dismissWithEvent(.generalError("Gr4vy Error: Failed to load"))
             return nil
         }
@@ -109,6 +111,8 @@ public class Gr4vy {
         self.onEvent = onEvent
         
         guard let url = Gr4vyUtility.getInitialURL(from: setup) else {
+            let defaults = UserDefaults.standard
+            defaults.setValue("Gr4vy Error: Failed to load", forKey: "wpayMessage")
             dismissWithEvent(.generalError("Gr4vy Error: Failed to load"))
             return
         }
@@ -121,7 +125,7 @@ public class Gr4vy {
         let navigationController = UINavigationController(rootViewController: rootViewController)
         navigationController.modalPresentationStyle = .overFullScreen
         
-        presentingViewController.present(navigationController, animated: true, completion: nil)
+        presentingViewController.present(navigationController.withSetupWhiteNavbar(for: navigationController), animated: true, completion: nil)
     }
     
     
@@ -187,6 +191,8 @@ extension Gr4vy: Gr4vyInternalDelegate {
             // Root Only
         case .approvalUrl:
             guard let url = Gr4vyUtility.handleApprovalUrl(from: message.payload) else {
+                let defaults = UserDefaults.standard
+                defaults.setValue("Gr4vy Error: Approval URL Failure", forKey: "wpayMessage")
                 dismissWithEvent(.generalError("Gr4vy Error: Approval URL Failure"))
                 return
             }
@@ -200,7 +206,7 @@ extension Gr4vy: Gr4vyInternalDelegate {
             let nav = UINavigationController(rootViewController: popUpViewController!)
             nav.modalPresentationStyle = .overFullScreen
 
-            rootViewController.present(nav, animated: true, completion: nil)
+            rootViewController.present(nav.withSetupWhiteNavbar(for: nav), animated: true, completion: nil)
             return
             
             // Root Only
@@ -217,12 +223,32 @@ extension Gr4vy: Gr4vyInternalDelegate {
         case .transactionFailed:
             error(message: "Gr4vy Error: transaction Failed")
             error(message: "\(message.payload.debugDescription)")
+            
+            // MARK: Store status and message
+            let defaults = UserDefaults.standard
+            
+            if let payloadData = message.payload["data"] as? [String:Any] {
+                guard let status = payloadData["status"] else { return }
+                defaults.set(status, forKey: "wpayStatus")
+                
+                if let details = payloadData["details"] as? [[String:Any]]  {
+                    if details.count > 0 {
+                        guard let message = details[0]["message"] else { return }
+                        defaults.set(message, forKey: "wpayMessage")
+                    }
+                }
+            }
+            
+            rootViewController.dismiss(animated: true) // MARK: Dismiss on payment failure to sync process with your process order API endpoint(s).
+            
             self.onEvent?(Gr4vyUtility.handleTransactionFailed(from: message.payload))
             return
             
             // Popover Only
         case .transactionUpdated, .approvalErrored:
             guard let content = Gr4vyUtility.handleTransactionUpdated(from: message.payload) else {
+                let defaults = UserDefaults.standard
+                defaults.setValue("Gr4vy Error: transactionUpdated / approvalErrored pass through failed.", forKey: "wpayMessage")
                 dismissWithEvent(.generalError("Gr4vy Error: transactionUpdated / approvalErrored pass through failed. "))
                 return
             }
@@ -281,16 +307,20 @@ extension Gr4vy: Gr4vyInternalDelegate {
             paymentVC.delegate = rootViewController
             rootViewController.present(paymentVC, animated: true, completion: nil)
             
+            self.enableUserInteraction(activate: false)
+            
             return
             
         case .appleCompletePayment:
+            self.enableUserInteraction(activate: false)
             rootViewController.applePayState = .started
             self.rootViewController.sendJavascriptMessage(Gr4vyUtility.generateAppleCompleteSession()) { _, _ in }
         }
     }
     
-    func handleAppleStartSession(message: Gr4vyMessage, merchantId: String, merchantName: String? = nil) -> PKPaymentRequest? {
-        return Gr4vyUtility.handleAppleStartSession(from: message.payload, merchantId: merchantId, merchantName: merchantName)
+    func handleAppleStartSession(message: Gr4vyMessage, merchantId: String) -> PKPaymentRequest? {
+        guard let startSessionRequest = Gr4vyUtility.handleAppleStartSession(from: message.payload, merchantId: merchantId) else { return PKPaymentRequest() }
+        return startSessionRequest.modifiedSessionForApplePay(gr4vySetup: self.setup, message: message)
     }
     
     func generateApplePayAuthorized(payment: PKPayment) {
@@ -299,6 +329,7 @@ extension Gr4vy: Gr4vyInternalDelegate {
     
     func handleAppleCancelSession() {
         rootViewController.sendJavascriptMessage(Gr4vyUtility.generateAppleCancelSession()) { _, _ in }
+        self.enableUserInteraction(activate: true)
     }
     
     func handleApprovalCancelled() {
