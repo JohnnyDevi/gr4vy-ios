@@ -147,6 +147,7 @@ public class Gr4vy {
 }
 
 extension Gr4vy: Gr4vyInternalDelegate {
+    
     func dismissWithEvent(_ event: Gr4vyEvent) {
         
         // If the popUpViewController is not shown/created, just dismiss the rootViewController
