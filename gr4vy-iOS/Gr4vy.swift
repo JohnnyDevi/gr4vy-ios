@@ -147,6 +147,7 @@ public class Gr4vy {
 }
 
 extension Gr4vy: Gr4vyInternalDelegate {
+    
     func dismissWithEvent(_ event: Gr4vyEvent) {
         
         // If the popUpViewController is not shown/created, just dismiss the rootViewController
@@ -318,8 +319,8 @@ extension Gr4vy: Gr4vyInternalDelegate {
         }
     }
     
-    func handleAppleStartSession(message: Gr4vyMessage, merchantId: String) -> PKPaymentRequest? {
-        guard let startSessionRequest = Gr4vyUtility.handleAppleStartSession(from: message.payload, merchantId: merchantId) else { return PKPaymentRequest() }
+    func handleAppleStartSession(message: Gr4vyMessage, merchantId: String, merchantName: String?) -> PKPaymentRequest? {
+        guard let startSessionRequest = Gr4vyUtility.handleAppleStartSession(from: message.payload, merchantId: merchantId, merchantName: merchantName ?? "") else { return PKPaymentRequest() }
         return startSessionRequest.modifiedSessionForApplePay(gr4vySetup: self.setup, message: message)
     }
     

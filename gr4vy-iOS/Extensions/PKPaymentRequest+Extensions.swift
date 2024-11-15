@@ -14,17 +14,8 @@ extension PKPaymentRequest {
     
     func modifiedSessionForApplePay(gr4vySetup: Gr4vySetup, message: Gr4vyMessage) -> PKPaymentRequest? {
         let payload = message.payload
-        var newPayload = payload
-        var payloadData = newPayload["data"] as? [String:Any] ?? [:]
-        var total = payloadData["total"] as? [String:Any] ?? [:]
-
-        if total.count > 0 && total["label"] != nil {
-            total["label"] = gr4vySetup.merchantAccountId ?? ""
-        }
-
-        payloadData["total"] = total
-        newPayload["data"] = payloadData
-     
-        return Gr4vyUtility.handleAppleStartSession(from: newPayload, merchantId: gr4vySetup.applePayMerchantId ?? "")
+        return Gr4vyUtility.handleAppleStartSession(from: payload,
+                                                    merchantId: gr4vySetup.applePayMerchantId ?? "",
+                                                    merchantName: gr4vySetup.applePayMerchantId ?? "")
     }
 }
