@@ -16,6 +16,6 @@ extension PKPaymentRequest {
         let payload = message.payload
         return Gr4vyUtility.handleAppleStartSession(from: payload,
                                                     merchantId: gr4vySetup.applePayMerchantId ?? "",
-                                                    merchantName: gr4vySetup.applePayMerchantId ?? "")
+                                                    merchantName: gr4vySetup.applePayMerchantName ?? "")
     }
 }
