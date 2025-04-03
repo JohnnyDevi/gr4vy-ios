@@ -306,6 +306,12 @@ extension Gr4vy: Gr4vyInternalDelegate {
             rootViewController.applePayState = .started
             
             paymentVC.delegate = rootViewController
+            
+            if rootViewController.presentedViewController is PKPaymentAuthorizationViewController {
+                print("Apple Pay is already presented, skipping duplicate request.")
+                self.enableUserInteraction(activate: true)
+                return
+            }
             rootViewController.present(paymentVC, animated: true, completion: nil)
             
             self.enableUserInteraction(activate: false)
